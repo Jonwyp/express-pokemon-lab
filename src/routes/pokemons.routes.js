@@ -1,9 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const ExpressPokemon = require("../models/express-pokemon.model");
+const {protectRoute} = require("../middlewares/auth");
 const wrapAsync = require("../utils/wrapAsync.js");
-
-router.use(express.json());
 
 const filterById = async idNumber =>
   await ExpressPokemon.find({ id: idNumber });
@@ -21,19 +20,22 @@ const displayAllPokemons = async () => {
 
 const createOnePokemon = async pokemon => {
   const doc = new ExpressPokemon(pokemon);
+  await ExpressPokemon.init();
   await doc.save();
 };
 
-router.get("/", async (req, res, done) => {
-  const result = !!req.query.name
-    ? await filterByName(req.query.name)
-    : await displayAllPokemons();
-  res.status(200).send(result);
-  done();
-});
+router.get(
+  "/",
+  wrapAsync(async (req, res, next) => {
+    const result = !!req.query.name
+      ? await filterByName(req.query.name)
+      : await displayAllPokemons();
+    res.status(200).send(result);
+  })
+);
 
 router.post(
-  "/",
+  "/", protectRoute,
   wrapAsync(async (req, res, next) => {
     const pokemon = req.body;
     await createOnePokemon(pokemon);
@@ -83,7 +85,7 @@ router.delete("/:id", async (req, res, done) => {
 
 router.use((err, req, res, next) => {
   if (err.name === "ValidationError") {
-    err.code = 400;
+    err.statusCode = 400;
   }
   next(err);
 });

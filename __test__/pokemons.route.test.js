@@ -4,11 +4,14 @@ const request = require("supertest");
 const Pokemon = require("../src/models/express-pokemon.model");
 const mongoose = require("mongoose");
 const { MongoMemoryServer } = require("mongodb-memory-server");
+const jwt = require("jsonwebtoken");
 
 mongoose.set("useNewUrlParser", true);
 mongoose.set("useFindAndModify", false);
 mongoose.set("useCreateIndex", true);
 mongoose.set("useUnifiedTopology", true);
+
+jest.mock("jsonwebtoken");
 
 describe("pokemons", () => {
   let mongoServer;
@@ -48,6 +51,7 @@ describe("pokemons", () => {
   });
 
   afterEach(async () => {
+    jest.resetAllMocks();
     await Pokemon.deleteMany();
   });
   it("GET /pokemons should return all pokemon in the database", async () => {
@@ -67,9 +71,7 @@ describe("pokemons", () => {
         category: "Tiny Turtle Pokemon"
       }
     ];
-    const { body: actualPokemon } = await request(app)
-      .get("/pokemons")
-      .expect(200);
+    const { body: actualPokemon } = await request(app).get("/pokemons").expect(200);
     actualPokemon.sort((a, b) => a.id > b.id);
     expect(actualPokemon).toMatchObject(pokemonData);
   });
@@ -90,6 +92,7 @@ describe("pokemons", () => {
     expect(actualPokemon).toMatchObject(expectedPokemon);
   });
   it("POST /pokemons should add a new pokemon to the database", async () => {
+    jwt.verify.mockReturnValueOnce({});
     const newPokemon = {
       id: 3,
       name: "Totodile",
@@ -102,6 +105,7 @@ describe("pokemons", () => {
     };
     const response = await request(app)
       .post("/pokemons")
+      .set("Cookie", "token=valid-token")
       .send(newPokemon)
       .expect(201);
     expect(response.body).toMatchObject(newPokemon);
@@ -171,11 +175,14 @@ describe("pokemons", () => {
     expect(deletedPokemon).toMatchObject(expectedPokemon);
   });
   it("POST /pokemons if name not provided should return error message in a JSON", async () => {
+    jwt.verify.mockReturnValueOnce({});
     const errorPokemon = { id: 4 };
     const response = await request(app)
       .post("/pokemons")
-      .send(errorPokemon)
+      .send(errorPokemon).set("Cookie","token=valid-token")
       .expect(400);
-    expect(response.body).toStrictEqual({ error: "ExpressPokemon validation failed: name: Path `name` is required." });
+    expect(response.body).toStrictEqual({
+      error: "ExpressPokemon validation failed: name: Path `name` is required."
+    });
   });
 });

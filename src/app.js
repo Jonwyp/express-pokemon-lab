@@ -1,6 +1,18 @@
 const express = require("express");
 const app = express();
-const pokemonRouter = require("./routes/pokemons-routes");
+const pokemonRouter = require("./routes/pokemons.routes");
+const cookieParser = require("cookie-parser");
+const trainerRouter = require("./routes/trainers.route");
+
+// const corsOptions = {
+//   credentials: true,
+//   allowedHeaders: "content-type",
+//   origin: "http://localhost:3001",
+// };
+
+// app.use(cors(corsOptions));
+
+app.use(cookieParser());
 
 app.use(express.json());
 
@@ -19,13 +31,15 @@ app.get("/", (req, res) => {
 
 app.use("/pokemons", pokemonRouter);
 
+app.use("/trainers", trainerRouter);
+
 app.use((err, req, res, next) => {
-  res.status(err.code || 500);
-  if(err.code) {
-    res.send({error: err.message})
+  res.status(err.statusCode || 500);
+  if (err.statusCode) {
+    res.send({ error: err.message });
   } else {
-    res.send({error: "internal server error"})
+    res.send({ error: "internal server error" });
   }
-})
+});
 
 module.exports = app;
